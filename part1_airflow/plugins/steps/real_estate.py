@@ -102,11 +102,10 @@ def extract(**kwargs):
         chunks.append(chunk)
         offset += limit
 
-    data = pd.concat(chunks)
-    # Установка уникального индекса перед сериализацией
-    data.reset_index(drop=True, inplace=True)
+    # Исправление: игнорировать исходные индексы при объединении
+    data = pd.concat(chunks, ignore_index=True)
     ti.xcom_push(key='raw_data', value=data.to_json())
-    
+
 def transform(**kwargs):
     """Обработка данных"""
     ti = kwargs['ti']
