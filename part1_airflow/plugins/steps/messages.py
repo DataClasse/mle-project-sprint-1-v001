@@ -1,46 +1,61 @@
 # plugins/steps/messages.py
-from airflow.providers.telegram.hooks.telegram import TelegramHook
+from telegram import Bot
+import asyncio
 import os
 import logging
+from airflow.models import Variable
+
+MLE_TELEGRAM_TOKEN = Variable.get("MLE_TELEGRAM_TOKEN")
+MLE_TELEGRAM_CHAT_ID = Variable.get("MLE_TELEGRAM_CHAT_ID")
+
+#from dotenv import load_dotenv, find_dotenv
+
+#load_dotenv(find_dotenv())
+#MLE_TELEGRAM_TOKEN = os.getenv('MLE_TELEGRAM_TOKEN')
+#MLE_TELEGRAM_CHAT_ID = os.getenv('MLE_TELEGRAM_CHAT_ID')
 
 logger = logging.getLogger(__name__)
 
-MLE_TELEGRAM_TOKEN = os.getenv('MLE_TELEGRAM_TOKEN')
-MLE_TELEGRAM_CHAT_ID = os.getenv('MLE_TELEGRAM_CHAT_ID')
+if not MLE_TELEGRAM_TOKEN:
+    logger.error("MLE_TELEGRAM_TOKEN не найден!")
+if not MLE_TELEGRAM_CHAT_ID:
+    logger.error("MLE_TELEGRAM_CHAT_ID не найден!")
 
-def send_telegram_notification(context, success=True):
-    """Базовая функция для отправки уведомлений"""
+def _send_sync(message: str):
+    """Синхронная обертка для асинхронной отправки"""
     try:
-        hook = TelegramHook(token=MLE_TELEGRAM_TOKEN, chat_id=MLE_TELEGRAM_CHAT_ID)
-        
-        dag_id = context['dag'].dag_id
-        run_id = context['run_id']
-        task_instance = context.get('task_instance')
-        
-        if success:
-            message = f"✅ DAG {dag_id} успешно выполнен!\nRun ID: {run_id}"
-        else:
-            exception = getattr(context, 'exception', None)
-            error = str(exception) if exception else "Неизвестная ошибка"
-            task_id = getattr(task_instance, 'task_id', 'N/A')
-            message = (
-                f"🔥 Ошибка в DAG {dag_id}!\n"
-                f"Run ID: {run_id}\n"
-                f"Задача: {task_id}\n"
-                f"Ошибка: {error}"
-            )
-        
-        hook.send_message(text=message)
-        logger.info("Уведомление отправлено")
-    
+        bot = Bot(token=MLE_TELEGRAM_TOKEN)
+        asyncio.run(bot.send_message(
+            chat_id=MLE_TELEGRAM_CHAT_ID,
+            text=message,
+            parse_mode='HTML'
+        ))
+        logger.info(f"Сообщение отправлено: {message[:50]}...")
     except Exception as e:
-        logger.error(f"Ошибка отправки уведомления: {str(e)}")
+        logger.error(f"Ошибка отправки: {str(e)}")
         raise
 
-def send_telegram_success_message(context):
-    """Успешное выполнение DAG"""
-    send_telegram_notification(context, success=True)
+def send_notification(context, success: bool):
+    """Универсальная функция для уведомлений"""
+    dag_id = context['dag'].dag_id
+    task_id = context.get('task_instance').task_id if not success else ''
+    status = "✅ УСПЕХ" if success else "🔥 ОШИБКА"
+    
+    message = (
+        f"<b>{status}</b>\n"
+        f"DAG: {dag_id}\n"
+        f"Run ID: {context['run_id']}"
+    )
+    
+    if not success:
+        error = str(context.get('exception')) or "Неизвестная ошибка"
+        message += f"\nЗадача: {task_id}\nОшибка: <code>{error}</code>"
 
-def send_telegram_failure_message(context):
-    """Ошибка выполнения DAG"""
-    send_telegram_notification(context, success=False)
+    _send_sync(message)
+
+# Функции для Airflow callback
+def send_success(context):
+    send_notification(context, success=True)
+
+def send_failure(context):
+    send_notification(context, success=False)

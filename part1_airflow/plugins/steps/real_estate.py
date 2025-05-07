@@ -1,32 +1,9 @@
 # plugins/steps/real_estate.py
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from sqlalchemy import MetaData, Table, Column, Integer, Float, String, Boolean
+from sqlalchemy import MetaData, Table, Column, Integer, Float, String, Boolean, DateTime, UniqueConstraint
 from sqlalchemy import inspect
 import pandas as pd
 import logging
-#from dotenv import load_dotenv, find_dotenv
-
-#load_dotenv()
-
-# Считываем все креды
-#src_host = os.environ.get('DB_SOURCE_HOST')
-#src_port = os.environ.get('DB_SOURCE_PORT')
-#src_username = os.environ.get('DB_SOURCE_USER')
-#src_password = os.environ.get('DB_SOURCE_PASSWORD')
-#src_db = os.environ.get('DB_SOURCE_NAME') 
-
-#dst_host = os.environ.get('DB_DESTINATION_HOST')
-#dst_port = os.environ.get('DB_DESTINATION_PORT')
-#dst_username = os.environ.get('DB_DESTINATION_USER')
-#dst_password = os.environ.get('DB_DESTINATION_PASSWORD')
-#dst_db = os.environ.get('DB_DESTINATION_NAME')
-
-#s3_bucket = os.environ.get('S3_BUCKET_NAME')
-#s3_access_key = os.environ.get('AWS_ACCESS_KEY_ID')
-#s3_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
-
-#mle_telegram_chat_id = os.environ.get('MLE_TELEGRAM_CHAT_ID')
-#mle_telegram_token = os.environ.get('MLE_TELEGRAM_TOKEN')
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +21,7 @@ def create_table(**kwargs):
         metadata = MetaData()
         table = Table(
             'merged_flats_buildings', metadata,
-            Column('flat_id', Integer, primary_key=True),
+            Column('flat_id', Integer, primary_key=True, autoincrement=True),
             Column('building_id', Integer),
             Column('floor', Integer),
             Column('kitchen_area', Float),
@@ -61,7 +38,8 @@ def create_table(**kwargs):
             Column('ceiling_height', Float),
             Column('flats_count', Integer),
             Column('floors_total', Integer),
-            Column('has_elevator', Boolean)
+            Column('has_elevator', Boolean),
+            UniqueConstraint("flat_id", name="uq_flat_id")
         )
 
         with engine.begin() as connection:
