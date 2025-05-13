@@ -8,12 +8,30 @@
 
 Этап 1. Сбор данных - выполнен.
 - код DAG, оформленный в репозитории GitHub (DataClasse /mle-project-sprint-1-v001/part1_airflow)
-- таблица с собранным датасетом в БД. Собран dataset: merged_flats_buildings
+- таблица с собранным датасетом в БД. Собран dataset: merged_flats_dataset
+DAG:
+    - dags/merge_flats_ETL.py
+plugins/steps:
+    - part1_airflow/plugins/steps/messages.py
+    Функции обработки:
+    - `send_success`, `send_failure`
+    - /part1_airflow/plugins/steps/merged_flats_data.py
+    Функции обработки:
+    - `create_table`, `extract`, `transform` и `load`
 
-Этап 2. Очистка данных - 
-- функции, которые исправляют ошибки в данных, оформленные в Jupyter Notebook и сохранённые в репозитории GitHub,
+Этап 2. Очистка данных - выполнен.
+DAG:
+    - plugins/steps/clean_flats_data.py
+plugins/steps:
+    - part1_airflow/plugins/steps/messages.py
+    Функции обработки:
+    - `send_success`, `send_failure`
+    - plugins/steps/clean_flats_data.py
+    Функции обработки:
+    - `create_table`, `extract`,`clean_data`,`load`
+- функции, которые исправляют ошибки в данных, оформленные в Jupyter Notebook и сохранённые в репозитории GitHub (удаление дубликатов, пропусков, выбросов),
 - код DAG, оформленный в репозитории GitHub,
-- таблица с очищенным датасетом в БД.
+- таблица с очищенным датасетом в БД. Собран dataset: clean_data_set
 
 Этап 3. Создание DVC-пайплайна обучения модели - 
 - файлы с конфигурациями DVC-пайплайна, сохранённые в репозитории GitHub,
