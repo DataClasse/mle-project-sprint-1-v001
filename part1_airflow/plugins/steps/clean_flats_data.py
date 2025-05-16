@@ -71,35 +71,79 @@ def extract(**kwargs):
 
 
 def clean_data(**kwargs):
-    """Очищает данные от дубликатов, пропусков и выбросов"""
+    
     ti = kwargs['ti']
     raw_data = ti.xcom_pull(task_ids='extract_data', key='raw_data')
     data = pd.read_json(raw_data)
 
-    # 1. Удаление дубликатов
-    data.drop_duplicates(inplace=True)
+    # 1. Удаление дубликатов по ID
+    duplicates_mask = data.duplicated(subset=['id'], keep=False)
+    logger.info(f"Найдено дубликатов по ID: {duplicates_mask.sum()}")
+    data = data.drop_duplicates(subset=['id'], keep='first')
 
-    # 2. Обработка пропусков
-    numerical_columns = ['price', 'total_area', 'ceiling_height', 'floor']
+    # 2. Обработка пропусков с учетом типа данных
+    # Для апартаментов разрешаем нулевую площадь кухни
+    kitchen_mask = (~data['is_apartment']) & (data['kitchen_area'].isna())
+    data.loc[kitchen_mask, 'kitchen_area'] = data.loc[kitchen_mask, 'kitchen_area'].fillna(0)
+
+    numerical_columns = [
+        'price', 'total_area', 'ceiling_height', 
+        'floor', 'build_year', 'flats_count'
+    ]
+    
+    # Заполнение медианой с логированием
     for col in numerical_columns:
+        before = data[col].isna().sum()
         median_val = data[col].median()
         data[col].fillna(median_val, inplace=True)
+        logger.info(f"Заполнено пропусков в {col}: {before} -> {data[col].isna().sum()}")
 
-    # Булевый признак заполняем False
-    data['has_elevator'].fillna(False, inplace=True)
+    # 3. Обработка выбросов с использованием 1% и 99% квантилей
+    outlier_config = {
+        'price': {'q_low': 0.01, 'q_high': 0.99},
+        'total_area': {'q_low': 0.01, 'q_high': 0.99},
+        'ceiling_height': {'q_low': 0.01, 'q_high': 0.99},
+        'floor': {'q_low': 0.01, 'q_high': 0.99},
+        'build_year': {'q_low': 0.01, 'q_high': 0.99},
+        'flats_count': {'q_low': 0.05, 'q_high': 0.95}  # Особый случай
+    }
 
-    # 3. Удаление выбросов (методом IQR)
-    outlier_columns = ['price', 'total_area', 'ceiling_height', 'floor']
-    for col in outlier_columns:
-        Q1 = data[col].quantile(0.25)
-        Q3 = data[col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
-        data = data[(data[col] >= lower_bound) & (data[col] <= upper_bound)]
+    initial_count = len(data)
+    for col, config in outlier_config.items():
+        q_low = data[col].quantile(config['q_low'])
+        q_high = data[col].quantile(config['q_high'])
+        
+        before = len(data)
+        data = data[(data[col] >= q_low) & (data[col] <= q_high)]
+        removed = before - len(data)
+        logger.info(f"Удалено выбросов в {col}: {removed} (границы: {q_low:.2f}-{q_high:.2f})")
 
-    # Сохраняем очищенные данные
+    logger.info(f"Всего удалено записей по выбросам: {initial_count - len(data)}")
+
+    # 4. Логические проверки
+    # Этажи
+    floor_issues = data[data['floor'] > data['floors_total']]
+    data = data.drop(floor_issues.index)
+    logger.info(f"Удалено некорректных этажей: {len(floor_issues)}")
+
+    # Годы постройки
+    current_year = pd.Timestamp.now().year
+    year_issues = data[(data['build_year'] < 1850) | (data['build_year'] > current_year)]
+    data = data.drop(year_issues.index)
+    logger.info(f"Удалено нереальных годов постройки: {len(year_issues)}")
+
+    # Координаты (пример для Москвы)
+    coord_mask = (
+        data['latitude'].between(55.0, 56.5) & 
+        data['longitude'].between(36.5, 38.5)
+    )
+    geo_issues = data[~coord_mask]
+    data = data[coord_mask]
+    logger.info(f"Удалено неверных координат: {len(geo_issues)}")
+
+    # 5. Сохранение результатов
     ti.xcom_push(key='cleaned_data', value=data.to_json())
+    logger.info(f"Финальный размер данных после очистки: {len(data)}")
 
 
 def load(**kwargs):
