@@ -1,0 +1,8 @@
+[core]
+    remote = my_dvc_s3
+['remote "my_dvc_s3"']
+    url = s3://s3-student-mle-20250228-981403deb1
+    endpointurl = https://storage.yandexcloud.net
+    region = ru-central1
+    access_key_id = YCAJE26tCTzKqvgfV8G9aEd-k
+    secret_access_key = YCO8miShSnB41jtyLQX7FRH_oz50dyFmPjEBE2uS
