@@ -1,3 +1,4 @@
 /config.local
 /tmp
 /cache
+S3.env

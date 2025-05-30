@@ -1,5 +1,4 @@
-# dags/cleanin_flats
-# _ETL.py
+# dags/cleaning_data_ETL.py
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
@@ -20,7 +19,7 @@ def handle_errors(func):
             raise AirflowException(error_msg)
     return wrapper
 
-# Оборачиваем наши функции обработчиком ошибок
+# Оборачиваем функции обработчиком ошибок
 wrapped_create_table = handle_errors(create_table)
 wrapped_extract = handle_errors(extract)
 wrapped_clean_data = handle_errors(clean_data)
@@ -43,7 +42,7 @@ with DAG(
     doc_md="""
 ### DAG для объединения данных о квартирах и зданиях
 
-Объединяет данные из таблиц `flats` и `buildings` в единую таблицу `merged_flats_dataset`, проводит очистку данных и сохраняет результат в таблицу `clean_data_set`.
+Объединяет данные из таблицы `merged_flats_dataset`, проводит очистку данных и сохраняет результат в таблицу `clean_data_set`.
 """,
 ) as dag:
 

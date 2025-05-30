@@ -14,13 +14,13 @@ def create_table(**kwargs):
         engine = hook.get_sqlalchemy_engine()
 
         inspector = inspect(engine)
-        if inspector.has_table('merged_flats_dataset'):
-            logger.info("Таблица merged_flats_dataset уже существует")
+        if inspector.has_table('clean_data_set'):
+            logger.info("Таблица clean_data_set уже существует")
             return
 
         metadata = MetaData()
         table = Table(
-            'merged_flats_dataset', metadata,
+            'clean_data_set', metadata,
             Column('id', Integer, primary_key=True, autoincrement=True),
             Column('building_id', Integer),
             Column('floor', Integer),
@@ -45,7 +45,7 @@ def create_table(**kwargs):
         with engine.begin() as connection:
             metadata.create_all(connection)
             
-        logger.info("Таблица merged_flats_dataset создана")
+        logger.info("Таблица clean_data_set создана")
 
     except Exception as e:
         logger.error(f"Ошибка создания таблицы: {str(e)}")
@@ -58,13 +58,14 @@ def extract(**kwargs):
     hook = PostgresHook(postgres_conn_id='destination_db')
     engine = hook.get_sqlalchemy_engine()
 
-    sql = """
-        SELECT f.*, b.build_year, b.building_type_int AS building_type,
-               b.latitude, b.longitude, b.ceiling_height,
-               b.flats_count, b.floors_total, b.has_elevator
-        FROM flats f
-        INNER JOIN buildings b ON f.building_id = b.id;
-    """
+    #sql = """
+    #    SELECT f.*, b.build_year, b.building_type_int AS building_type,
+    #           b.latitude, b.longitude, b.ceiling_height,
+    #           b.flats_count, b.floors_total, b.has_elevator
+    #    FROM flats f
+    #    INNER JOIN buildings b ON f.building_id = b.id;
+    #"""
+    sql = "SELECT * FROM merged_flats_dataset;"
 
     data = pd.read_sql(sql, engine)
     ti.xcom_push(key='raw_data', value=data.to_json())
@@ -77,7 +78,8 @@ def clean_data(**kwargs):
     data = pd.read_json(raw_data)
 
     # 1. Удаление дубликатов по ID
-    duplicates_mask = data.duplicated(subset=['id'], keep=False)
+    # duplicates_mask = data.duplicated(subset=['id'], keep=False)
+    duplicates_mask = data.duplicated(subset=['id'], keep='first')
     logger.info(f"Найдено дубликатов по ID: {duplicates_mask.sum()}")
     data = data.drop_duplicates(subset=['id'], keep='first')
 

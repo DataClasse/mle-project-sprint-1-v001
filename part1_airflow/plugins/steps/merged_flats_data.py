@@ -63,7 +63,7 @@ def extract(**kwargs):
                b.latitude, b.longitude, b.ceiling_height,
                b.flats_count, b.floors_total, b.has_elevator
         FROM flats f
-        INNER JOIN buildings b ON f.building_id = b.id;
+        LEFT JOIN buildings b ON f.building_id = b.id;   # зменил на LEFT JOIN
     """
 
     data = pd.read_sql(sql, engine)

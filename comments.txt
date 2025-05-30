@@ -1,0 +1,13 @@
+Изменения:
+1. clean_flats_data.py
+В extract() заменил запрос готовой таблицы merged_flats_dataset
+В clean_data() дубликаты удаляются с сохранением первого вхождения (keep=first)
+В create_table() создаю таблицу clean_data_set вместо merged_flats_dataset
+2. merged_flats_data.py
+Заменил INNER JOIN на LEFT JOIN для сохранения всех записей из таблицы flats
+3. params.yaml
+Дополнил раздел с метриками
+4. evaluate.py
+метрики теперь из params.yaml
+5. fit.py
+Удалил StandardScaler, тк гр.бустинг нечувствителен к масштабированию. Остальные признауки без модификаций

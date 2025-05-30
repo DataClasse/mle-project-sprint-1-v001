@@ -15,15 +15,17 @@ def convert_to_list(arr):
 def evaluate_model():
     with open('params.yaml', 'r') as fd:
         params = yaml.safe_load(fd)
+    scoring_metrics = params['scoring'] # метрики теперь из params.yaml
     data = pd.read_csv('data/initial_data.csv', index_col=params['index_col'])
     pipeline = load('models/fitted_model.pkl')
+    
     if params['use_kfold']:
         cv = KFold(n_splits=params['n_splits'], shuffle=True, random_state=params['seed'])
         scores = cross_validate(
             pipeline,
             data.drop(params['target_col'], axis=1),
             data[params['target_col']],
-            scoring=['neg_mean_absolute_error', 'neg_mean_squared_error', 'r2'],
+            scoring=scoring_metrics,  
             cv=cv,
             return_train_score=True
         )
@@ -32,7 +34,7 @@ def evaluate_model():
             pipeline,
             data.drop(params['target_col'], axis=1),
             data[params['target_col']],
-            scoring=['neg_mean_absolute_error', 'neg_mean_squared_error', 'r2'],
+            scoring=scoring_metrics, 
             cv=params['n_splits'],
             return_train_score=True
         )

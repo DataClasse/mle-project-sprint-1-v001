@@ -1,4 +1,4 @@
-# dags/merge_table_ETL.py
+# dags/merge_flats_ETL.py
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
